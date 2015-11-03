@@ -46,12 +46,14 @@ func (task *Task) initializeEmptyVolumes() {
 			if !ok {
 				continue
 			}
-			if _, ok := vol.(*EmptyHostVolume); ok {
-				if container.RunDependencies == nil {
-					container.RunDependencies = make([]string, 0)
+			if container.VolumeDriver == "" {
+				if _, ok := vol.(*EmptyHostVolume); ok {
+					if container.RunDependencies == nil {
+						container.RunDependencies = make([]string, 0)
+					}
+					container.RunDependencies = append(container.RunDependencies, emptyHostVolumeName)
+					requiredEmptyVolumes = append(requiredEmptyVolumes, mountPoint.SourceVolume)
 				}
-				container.RunDependencies = append(container.RunDependencies, emptyHostVolumeName)
-				requiredEmptyVolumes = append(requiredEmptyVolumes, mountPoint.SourceVolume)
 			}
 		}
 	}
@@ -216,6 +218,7 @@ func (task *Task) dockerConfig(container *Container) (*docker.Config, *DockerCli
 		Cmd:          container.Command,
 		Entrypoint:   entryPoint,
 		ExposedPorts: task.dockerExposedPorts(container),
+		VolumeDriver: container.VolumeDriver,
 		Volumes:      dockerVolumes,
 		Env:          dockerEnv,
 		Memory:       dockerMem,
@@ -275,7 +278,8 @@ func (task *Task) dockerConfigVolumes(container *Container) (map[string]struct{}
 		// you can handle most volume mount types in the HostConfig at run-time;
 		// empty mounts are created by docker at create-time (Config) so set
 		// them here.
-		if container.Name == emptyHostVolumeName && container.IsInternal {
+		// volume driver, add empty vol on if driver is not in task.
+		if container.Name == emptyHostVolumeName && container.IsInternal && container.VolumeDriver == "" {
 			_, ok := vol.(*EmptyHostVolume)
 			if !ok {
 				return nil, &badVolumeError{"Empty volume container in task " + task.Arn + " was the wrong type"}
@@ -397,12 +401,19 @@ func (task *Task) dockerHostBinds(container *Container) ([]string, error) {
 			return []string{}, errors.New("Invalid volume referenced: " + mountPoint.SourceVolume)
 		}
 
-		if hv.SourcePath() == "" || mountPoint.ContainerPath == "" {
-			log.Error("Unable to resolve volume mounts; invalid path: " + container.Name + " " + mountPoint.SourceVolume + "; " + hv.SourcePath() + " -> " + mountPoint.ContainerPath)
-			return []string{}, errors.New("Unable to resolve volume mounts; invalid path: " + container.Name + " " + mountPoint.SourceVolume + "; " + hv.SourcePath() + " -> " + mountPoint.ContainerPath)
+		var bind string 
+        if container.VolumeDriver == "" {
+			if hv.SourcePath() == "" || mountPoint.ContainerPath == "" {
+				log.Error("Unable to resolve volume mounts; invalid path: " + container.Name + " " + mountPoint.SourceVolume + "; " + hv.SourcePath() + " -> " + mountPoint.ContainerPath)
+				return []string{}, errors.New("Unable to resolve volume mounts; invalid path: " + container.Name + " " + mountPoint.SourceVolume + "; " + hv.SourcePath() + " -> " + mountPoint.ContainerPath)
+			}
+			bind = hv.SourcePath() + ":" + mountPoint.ContainerPath
+		// volumename:/path/in/container as long as VolumeDriver is present.
+		} else {
+			bind = mountPoint.SourceVolume + ":" + mountPoint.ContainerPath
 		}
 
-		bind := hv.SourcePath() + ":" + mountPoint.ContainerPath
+		
 		if mountPoint.ReadOnly {
 			bind += ":ro"
 		}

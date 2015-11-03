@@ -143,6 +143,7 @@
         "overrides":{"shape":"String"},
         "portMappings":{"shape":"PortMappingList"},
         "mountPoints":{"shape":"MountPointList"},
+        "volumeDriver":{"shape":"String"},
         "volumesFrom":{"shape":"VolumeFromList"},
         "dockerConfig":{"shape":"DockerConfig"}
       }

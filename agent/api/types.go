@@ -125,6 +125,7 @@ type MountPoint struct {
 // docker volume mount
 type HostVolume interface {
 	SourcePath() string
+	//plugin bool = false 
 }
 
 // FSHostVolume is a simple type of HostVolume which references an arbitrary
@@ -137,6 +138,18 @@ type FSHostVolume struct {
 func (fs *FSHostVolume) SourcePath() string {
 	return fs.FSSourcePath
 }
+
+/*
+// [flocker] Plugin Volumes only need a pluginName instead of host path
+type PluginVolume struct (
+	PluginName string `json:"pluginName"`
+)
+
+// [flocker] We substitute the path and put in the pluginName for later
+func (p *PluginVolume) SourcePath() string {
+	return p.PluginName
+}
+*/
 
 type EmptyHostVolume struct {
 	HostPath string `json:"hostPath"`
@@ -218,6 +231,7 @@ type Container struct {
 	Cpu          uint
 	Memory       uint
 	Links        []string
+	VolumeDriver string        `json:"volumeDriver"`
 	VolumesFrom  []VolumeFrom  `json:"volumesFrom"`
 	MountPoints  []MountPoint  `json:"mountPoints"`
 	Ports        []PortBinding `json:"portMappings"`

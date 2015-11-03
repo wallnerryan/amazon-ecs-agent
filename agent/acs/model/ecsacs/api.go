@@ -126,6 +126,8 @@ type Container struct {
 
 	PortMappings []*PortMapping `locationName:"portMappings" type:"list"`
 
+	VolumeDriver *string `locationName:"volumeDriver" type:"string"`
+
 	VolumesFrom []*VolumeFrom `locationName:"volumesFrom" type:"list"`
 
 	metadataContainer `json:"-" xml:"-"`
